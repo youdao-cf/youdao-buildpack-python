@@ -39,7 +39,7 @@ BUILD_DIR=$1
 CACHE_DIR=$2
 
 # Prepend proper path for virtualenv hackery. This will be deprecated soon.
-export PATH=:$BUILD_DIR/.heroku/python/bin:/usr/local/bin:$PATH
+export PATH=:$BUILD_DIR/.heroku/python/bin:/usr/local/bin:$ROOT_DIR/vendor:$PATH
 
 # The detected application type (`Python`|`Python/Django`).
 NAME=$($BIN_DIR/detect $BUILD_DIR)
@@ -57,8 +57,10 @@ PROFILE_PATH="$1/.profile.d/python.sh"
 
 
 # Python version. This will be used in the future to specify custom Pythons.
-PYTHON_VERSION="pypy-1.7"
-PYTHON_EXE="pypy"
+PYTHON_VERSION="cpython/3.2"
+PYTHON_DIST=$(curl http://envy-versions.herokuapp.com/dists/$PYTHON_VERSION -s | json.sh | egrep 'dist' | head -1 | awk '{print $2}' | sed "s/\"//g")
+PYTHON_EXE=$(curl http://envy-versions.herokuapp.com/dists/$PYTHON_VERSION -s | json.sh | egrep 'script' | head -1 | awk '{print $2}' | sed "s/\"//g")
+
 
 # Sanitizing environment variables.
 unset GIT_DIR PYTHONHOME PYTHONPATH LD_LIBRARY_PATH LIBRARY_PATH
@@ -166,12 +168,27 @@ mkdir -p $(dirname $PROFILE_PATH)
 set +e
 puts-step "Preparing Python interpreter ($PYTHON_VERSION)"
 puts-step "Fetching Python"
-curl http://envy-versions.s3.amazonaws.com/dists/51be6b7b802a5239a759e04ae9595082e17c4c70 > python.tar.bz2
-puts-step "Extracting Python"
+# curl http://envy-versions.s3.amazonaws.com/dists/51be6b7b802a5239a759e04ae9595082e17c4c70 > python.tar.bz2
+# puts-step "Extracting Python"
 
+# tar jxf python.tar.bz2
+# mv pypy-1.9 .heroku/python
+# ln .heroku/python/bin/pypy .heroku/python/bin/python
+
+curl http://envy-versions.herokuapp.com/dists/$PYTHON_VERSION/download -L -s > python.tar.bz2
+
+puts-step "Extracting Python"
 tar jxf python.tar.bz2
-mv pypy-1.9 .heroku/python
-ln .heroku/python/bin/pypy .heroku/python/bin/python
+rm python.tar.bz2
+rm -fr .heroku/python
+mv python .heroku/
+
+puts-step "Linking Python"
+rm -fr .heroku/python/bin/python
+ln .heroku/python/bin/$PYTHON_EXE .heroku/python/bin/python
+set +h
+hash -r
+
 
 puts-step "Success! Version: $(python --version)"
 puts-step "         Path: $(which python)"
