@@ -38,8 +38,8 @@ ROOT_DIR=$(dirname $BIN_DIR)
 BUILD_DIR=$1
 CACHE_DIR=$2
 
-# Prepend proper path for virtualenv hackery. This will be deprecated soon.
-export PATH=:$BUILD_DIR/.heroku/python/bin:/usr/local/bin:$ROOT_DIR/vendor:$PATH
+# Prepend proper path buildpack use.
+export PATH=$BUILD_DIR/.heroku/python/bin:$PATH
 
 # The detected application type (`Python`|`Python/Django`).
 NAME=$($BIN_DIR/detect $BUILD_DIR)
@@ -55,12 +55,8 @@ LEGACY_VIRTUALENV_DIRS="bin include lib"
 LEGACY_VIRTUALENV_TRIGGER="lib/python2.7"
 PROFILE_PATH="$1/.profile.d/python.sh"
 
-
 # Python version. This will be used in the future to specify custom Pythons.
-PYTHON_VERSION="cpython/3.2"
-PYTHON_DIST=$(curl http://envy-versions.herokuapp.com/dists/$PYTHON_VERSION -s | json.sh | egrep 'dist' | head -1 | awk '{print $2}' | sed "s/\"//g")
-PYTHON_EXE=$(curl http://envy-versions.herokuapp.com/dists/$PYTHON_VERSION -s | json.sh | egrep 'script' | head -1 | awk '{print $2}' | sed "s/\"//g")
-
+PYTHON_VERSION="python-2.6.2"
 
 # Sanitizing environment variables.
 unset GIT_DIR PYTHONHOME PYTHONPATH LD_LIBRARY_PATH LIBRARY_PATH
@@ -127,17 +123,6 @@ if [ -d $CACHE_DIR/$LEGACY_VIRTUALENV_TRIGGER ]; then
   LEGACY_VIRTUALENV=true
   VIRTUALENV_LOC=$LEGACY_VIRTUALENV_LOC
   CACHED_DIRS=$LEGACY_VIRTUALENV_DIRS
-
-  # Warn for a checked-in virtualenv.
-  if [ -d "lib" ] || [ -d "bin" ]; then
-    puts-warn "You have a virtualenv checked in. You should ignore the appropriate paths in your repo. See http://devcenter.heroku.com/articles/gitignore for more info.";
-  fi
-
-  # Reject a conflicting checked-in virtualenv.
-  if [ -f "lib/python2.7" ]; then
-    puts-warn "Checked-in virtualenv conflict."
-    exit 1;
-  fi
 fi
 
 # Restore old artifacts from the cache.
@@ -145,71 +130,45 @@ for dir in $CACHED_DIRS; do
   cp -R $CACHE_DIR/$dir . &> /dev/null || true
 done
 
-set +e
 # Create set-aside `.heroku` folder.
-mkdir .heroku &> /dev/null
-HEROKU_DIR_STATUS=$?
-
-# TODO: This is a new app, disable injection.
-# [ $HEROKU_DIR_STATUS -eq 0 ] && {
-  #TODO: touch .heroku/injection_disabled
-# }
-set -e
+mkdir -p .heroku &> /dev/null
 
 # Buildpack profile init script
 mkdir -p $(dirname $PROFILE_PATH)
 
-# ### Virtualenv Setup
-#
-
-# Create the virtualenv. Rebuild if corrupt.
-# TODO: Bootstrap a bottled Python VM...
-
 set +e
-puts-step "Preparing Python interpreter ($PYTHON_VERSION)"
-puts-step "Fetching Python"
-# curl http://envy-versions.s3.amazonaws.com/dists/51be6b7b802a5239a759e04ae9595082e17c4c70 > python.tar.bz2
-# puts-step "Extracting Python"
+puts-step "Preparing Python runtime ($PYTHON_VERSION)"
 
-# tar jxf python.tar.bz2
-# mv pypy-1.9 .heroku/python
-# ln .heroku/python/bin/pypy .heroku/python/bin/python
+# Install Python.
+if [ -f .heroku/python-version ]; then
+  if [ ! $(cat .heroku/python-version) = $PYTHON_VERSION ]; then
+    puts-step "Found $(cat .heroku/python-version), removing."
+    rm -fr .heroku/python
+  else
+    SKIP_INSTALL=1
+  fi
+fi
 
-curl http://envy-versions.herokuapp.com/dists/$PYTHON_VERSION/download -L -s > python.tar.bz2
+if [ ! "$SKIP_INSTALL" ]; then
+  puts-step "Installing runtime $PYTHON_VERSION"
+  curl http://envy-versions.s3.amazonaws.com/$PYTHON_VERSION.tar.bz2 | tar jx
+  mv python .heroku/python
 
-puts-step "Extracting Python"
-tar jxf python.tar.bz2
-rm python.tar.bz2
-rm -fr .heroku/python
-mv python .heroku/
+  # Record for future reference.
+  echo $PYTHON_VERSION > .heroku/python-version
 
-puts-step "Linking Python"
-rm -fr .heroku/python/bin/python
-ln .heroku/python/bin/$PYTHON_EXE .heroku/python/bin/python
+  # Prepare it for the real world
+  curl -O http://python-distribute.org/distribute_setup.py
+  python distribute_setup.py
+
+  easy_install pip
+fi
+
 set +h
-hash -r
 
 
 puts-step "Success! Version: $(python --version)"
 puts-step "         Path: $(which python)"
-
-# puts-step "Creating Virtualenv"
-
-# Try to create the virtualenv.
-# OUT=$(virtualenv $VIRTUALENV_LOC 2>&1)
-
-# [ $? -ne 0 -o -n "$CLEAN_VIRTUALENV" ] && {
-#   if [ -n "$CLEAN_VIRTUALENV" ]
-#     then echo " !     CLEAN_VIRTUALENV set, rebuilding virtualenv."
-#     else echo " !     Virtualenv corrupt, rebuilding."
-#   fi
-#   for dir in $VIRTUALENV_DIRS; do
-#     rm -fr $dir &> /dev/null || true
-#   done
-#   OUT=$(virtualenv $VIRTUALENV_LOC )
-# }
-# echo "$OUT" | indent
-
 set -e
 
 # Pylibmc support.
@@ -220,10 +179,6 @@ source $BIN_DIR/steps/pylibmc
 # puts-step "Activating virtualenv"
 # source $VIRTUALENV_LOC/bin/activate
 
-curl -O http://python-distribute.org/distribute_setup.py
-$PYTHON_EXE distribute_setup.py
-
-easy_install pip
 
 # Install Mercurial if it appears to be required.
 if (grep -Fiq "hg+" requirements.txt) then
@@ -232,7 +187,7 @@ fi
 
 # Install dependencies with Pip.
 puts-step "Installing dependencies using pip version $(pip --version | awk '{print $2}')"
-pip install --use-mirrors -r requirements.txt --exists-action=w --src=./.heroku/src | indent
+pip install --use-mirrors -r requirements.txt --exists-action=w --src=./.heroku/python/lib/python2.6/site-packages/ | indent
 
 # Do additional application hackery if applications appears to be a Django app.
 # Optionally, disable all Django-specific changes with `DISABLE_INJECTION` env.
@@ -242,6 +197,11 @@ pip install --use-mirrors -r requirements.txt --exists-action=w --src=./.heroku/
 if [ "$NAME" = "Python/Django" ]; then
   source $BIN_DIR/steps/django/init
 fi
+
+# Convert binstubs.
+curl -O https://raw.github.com/gist/bb32029997367c74c6f9/convert.py
+python --version
+python convert.py .heroku/python/bin/
 
 # ### Finalize
 #
@@ -255,18 +215,13 @@ done
 # Set context environment variables.
 
 set-env PATH '$HOME/.heroku/python/bin:$PATH'
+set-env PYTHONHOME /app/.heroku/python/
 set-default-env PYTHONUNBUFFERED true
 set-default-env LIBRARY_PATH /app/.heroku/vendor/lib
 set-default-env LD_LIBRARY_PATH /app/.heroku/vendor/lib
 set-default-env LANG en_US.UTF-8
 set-default-env PYTHONHASHSEED random
-set-default-env PYTHONHOME /app/.heroku/venv/
 set-default-env PYTHONPATH /app/
-
-
-curl -O https://raw.github.com/gist/bb32029997367c74c6f9/convert.py
-python --version
-python convert.py .heroku/python/bin/
 
 
 # ### Fin.
