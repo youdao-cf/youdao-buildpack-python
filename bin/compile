@@ -38,31 +38,10 @@ ROOT_DIR=$(dirname $BIN_DIR)
 BUILD_DIR=$1
 CACHE_DIR=$2
 
-# Prepend proper path buildpack use.
-export PATH=$BUILD_DIR/.heroku/python/bin:$PATH
+# ### The Cache
+mkdir -p $CACHE_DIR
+[ ! "$(ls -A $CACHE_DIR)" ] && export FRESH_APP=1
 
-# The detected application type (`Python`|`Python/Django`).
-NAME=$($BIN_DIR/detect $BUILD_DIR)
-
-# Where to store the Pip download cache.
-CACHED_DIRS=".heroku"
-PIP_DOWNLOAD_CACHE=${PIP_DOWNLOAD_CACHE:-$CACHE_DIR/pip_downloads}
-
-# Static configurations for virtualenv caches.
-LEGACY_VIRTUALENV_LOC="."
-MODERN_VIRTUALENV_LOC=".heroku/venv"
-LEGACY_VIRTUALENV_DIRS="bin include lib"
-LEGACY_VIRTUALENV_TRIGGER="lib/python2.7"
-PROFILE_PATH="$1/.profile.d/python.sh"
-
-# Python version. This will be used in the future to specify custom Pythons.
-PYTHON_VERSION="python-2.6.2"
-
-# Sanitizing environment variables.
-unset GIT_DIR PYTHONHOME PYTHONPATH LD_LIBRARY_PATH LIBRARY_PATH
-
-# We'll need to send these statics to other scripts we `source`.
-export PIP_DOWNLOAD_CACHE BUILD_DIR CACHE_DIR BIN_DIR PROFILE_PATH
 
 # Syntax sugar.
 indent() {
@@ -90,6 +69,68 @@ function set-default-env (){
   echo "export $1=\${$1:-$2}" >> $PROFILE_PATH
 }
 
+function deep-cp (){
+  find -H $1 -maxdepth 1 -name '.*' -a \( -type d -o -type f -o -type l \) -exec cp -a '{}' $2 \;
+  echo copying $1 to $2
+}
+
+function deep-mv (){
+  deep-cp $1 $2
+
+  rm -fr $1/*
+  find -H $1 -maxdepth 1 -name '.*' -a \( -type d -o -type f -o -type l \) -exec rm -fr '{}' \;
+}
+
+# Directory Hacks for path consistiency.
+APP_DIR='/app'
+TMP_APP_DIR=$CACHE_DIR/tmp_app_dir
+
+# Copy Anvil app dir to temporary storage...
+mkdir -p $TMP_APP_DIR
+deep-mv $APP_DIR $TMP_APP_DIR
+
+# Copy Application code in.
+deep-mv $BUILD_DIR $APP_DIR
+
+# Purge Application code.
+# rm -fr $BUILD_DIR
+# mkdir -p $BUILD_DIR
+
+# Set new context.
+ORIG_BUILD_DIR=$BUILD_DIR
+BUILD_DIR=$APP_DIR
+
+
+# Prepend proper path buildpack use.
+export PATH=$BUILD_DIR/.heroku/python/bin:$PATH
+
+# The detected application type (`Python`|`Python/Django`).
+echo $BUILD_DIR
+ls $BUILD_DIR
+# NAME=$($BIN_DIR/detect $BUILD_DIR)
+
+# Where to store the Pip download cache.
+CACHED_DIRS=".heroku"
+PIP_DOWNLOAD_CACHE=${PIP_DOWNLOAD_CACHE:-$CACHE_DIR/pip_downloads}
+
+# Static configurations for virtualenv caches.
+LEGACY_VIRTUALENV_LOC="."
+MODERN_VIRTUALENV_LOC=".heroku/venv"
+LEGACY_VIRTUALENV_DIRS="bin include lib"
+LEGACY_VIRTUALENV_TRIGGER="lib/python2.7"
+PROFILE_PATH="$BUILD_DIR/.profile.d/python.sh"
+PYTHONUNBUFFERED=true
+
+# Python version. This will be used in the future to specify custom Pythons.
+PYTHON_VERSION="python-2.6.2"
+
+# Sanitizing environment variables.
+unset GIT_DIR PYTHONHOME PYTHONPATH LD_LIBRARY_PATH LIBRARY_PATH
+
+# We'll need to send these statics to other scripts we `source`.
+export PIP_DOWNLOAD_CACHE BUILD_DIR CACHE_DIR BIN_DIR PROFILE_PATH PYTHONUNBUFFERED
+
+
 # ## Build Time
 #
 
@@ -108,10 +149,6 @@ if [ ! -f requirements.txt ]; then
   puts-step "No requirements.txt provided; assuming dist package."
   echo "-e ." > requirements.txt
 fi
-
-# ### The Cache
-mkdir -p $CACHE_DIR
-[ ! "$(ls -A $CACHE_DIR)" ] && export FRESH_APP=1
 
 
 # Nice defaults.
@@ -187,7 +224,7 @@ fi
 
 # Install dependencies with Pip.
 puts-step "Installing dependencies using pip version $(pip --version | awk '{print $2}')"
-pip install --use-mirrors -r requirements.txt --exists-action=w --src=./.heroku/python/lib/python2.6/site-packages/ | indent
+pip install --use-mirrors -r requirements.txt --exists-action=w --src=./.heroku/src | indent
 
 # Do additional application hackery if applications appears to be a Django app.
 # Optionally, disable all Django-specific changes with `DISABLE_INJECTION` env.
@@ -199,9 +236,9 @@ if [ "$NAME" = "Python/Django" ]; then
 fi
 
 # Convert binstubs.
-curl -O https://raw.github.com/gist/bb32029997367c74c6f9/convert.py
+# curl -O https://raw.github.com/gist/bb32029997367c74c6f9/convert.py
 python --version
-python convert.py .heroku/python/bin/
+# python convert.py .heroku/python/bin/
 
 # ### Finalize
 #
@@ -225,6 +262,15 @@ set-default-env PYTHONPATH /app/
 
 
 # ### Fin.
+
+# Directory Hack
+echo end location
+echo $ORIG_BUILD_DIR
+
+deep-mv $BUILD_DIR $ORIG_BUILD_DIR
+
+deep-mv $TMP_APP_DIR $APP_DIR
+rm -fr $TMP_APP_DIR
 
 # Experimental post_compile hook.
 source $BIN_DIR/steps/hooks/post_compile
