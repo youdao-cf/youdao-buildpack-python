@@ -47,8 +47,10 @@ function deep-cp (){
 
 # Does some serious moving.
 function deep-mv (){
+  if [ ! -f $1/!(tmp) ]; then
+     mkdir $1/!(tmp)
+  fi
   deep-cp $1 $2
-
   rm -fr $1/!(tmp)
   find -H $1 -maxdepth 1 -name '.*' -a \( -type d -o -type f -o -type l \) -exec rm -fr '{}' \;
 }
