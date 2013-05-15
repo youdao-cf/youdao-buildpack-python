@@ -4,6 +4,7 @@
 #
 #     $ bin/compile <build-dir> <cache-dir>
 
+mkdir -p /home/vcap/app
 
 # Fail fast and fail hard.
 set -eo pipefail
