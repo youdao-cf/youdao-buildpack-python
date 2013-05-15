@@ -147,6 +147,11 @@ if [ "$FRESH_PYTHON" ] || [[ ! $(pip --version) == *$PIP_VERSION* ]]; then
   cd /home/vcap/app/dea_ng/buildpacks/vendor/python/vendor/pip-$PIP_VERSION/
   python setup.py install &> /dev/null
   cd $WORKING_DIR
+
+  puts-step "Installing Gunicorn "
+  cd /home/vcap/app/dea_ng/buildpacks/vendor/python/vendor/gunicorn/
+  python setup.py install
+  cd $WORKING_DIR
 fi
 
 set -e

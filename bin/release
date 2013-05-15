@@ -9,7 +9,8 @@ MANAGE_FILE=${MANAGE_FILE:2}
 
 cat <<EOF
 ---
-config_vars:
+default_process_types:
+  gunicorn -b 127.0.0.1:$PORT wsgi:application
 
 EOF
 
