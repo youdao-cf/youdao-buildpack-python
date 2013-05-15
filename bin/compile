@@ -29,6 +29,7 @@ DEFAULT_PYTHON_VERSION="python-2.7.4"
 PYTHON_EXE="/home/vcap/app/.heroku/python/bin/python"
 PIP_VERSION="1.3.1"
 DISTRIBUTE_VERSION="0.6.36"
+GUNICORN="0.17.4"
 
 # Sanitizing environment variables.
 unset GIT_DIR PYTHONHOME PYTHONPATH LD_LIBRARY_PATH LIBRARY_PATH
@@ -148,9 +149,9 @@ if [ "$FRESH_PYTHON" ] || [[ ! $(pip --version) == *$PIP_VERSION* ]]; then
   python setup.py install &> /dev/null
   cd $WORKING_DIR
 
-  puts-step "Installing Gunicorn "
-  cd /home/vcap/app/dea_ng/buildpacks/vendor/python/vendor/gunicorn/
-  python setup.py install
+  puts-step "Installing Gunicorn ($GUNICORN)"
+  cd /home/vcap/app/dea_ng/buildpacks/vendor/python/vendor/gunicorn-$GUNICORN/
+  python setup.py install &> /dev/null
   cd $WORKING_DIR
 fi
 
@@ -171,9 +172,15 @@ puts-step "Installing dependencies using Pip ($PIP_VERSION)"
 /home/vcap/app/.heroku/python/bin/pip install --use-mirrors -r requirements.txt --exists-action=w --src=./.heroku/src | cleanup | indent
 
 # Create boot script
+cat >>$APP_DIR/gunicorn-config.py <<EOF
+import os
+bind = "0.0.0.0:" + os.environ['PORT']
+EOF
+
+# Create boot script
 cat >>$APP_DIR/boot.sh <<EOF
 echo "Launching Gunicorn"
-exec gunicorn -b 127.0.0.1:$PORT wsgi:application
+exec gunicorn wsgi:application -c /home/vcap/app/gunicorn-config.py
 EOF
 
 chmod +x $APP_DIR/boot.sh
