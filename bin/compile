@@ -139,12 +139,12 @@ if [ "$FRESH_PYTHON" ] || [[ ! $(pip --version) == *$PIP_VERSION* ]]; then
   chmod a+w /home/vcap/app/dea_ng/buildpacks/vendor/python -R
   # Prepare it for the real world
   puts-step "Installing Distribute ($DISTRIBUTE_VERSION)"
-  cd /home/vcap/app/vendor/distribute-$DISTRIBUTE_VERSION/
+  cd /home/vcap/app/dea_ng/buildpacks/vendor/python/vendor/distribute-$DISTRIBUTE_VERSION/
   python setup.py install &> /dev/null
   cd $WORKING_DIR
 
   puts-step "Installing Pip ($PIP_VERSION)"
-  cd /home/vcap/app/vendor/pip-$PIP_VERSION/
+  cd /home/vcap/app/dea_ng/buildpacks/vendor/python/vendor/pip-$PIP_VERSION/
   python setup.py install &> /dev/null
   cd $WORKING_DIR
 fi
