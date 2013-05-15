@@ -9,7 +9,8 @@ MANAGE_FILE=${MANAGE_FILE:2}
 
 cat <<EOF
 ---
-config_vars:
+default_process_types:
+  web: sh boot.sh
 
 EOF
 
