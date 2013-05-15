@@ -10,7 +10,7 @@ MANAGE_FILE=${MANAGE_FILE:2}
 cat <<EOF
 ---
 default_process_types:
-  gunicorn -b 127.0.0.1:$PORT wsgi:application
+  web: sh boot.sh
 
 EOF
 

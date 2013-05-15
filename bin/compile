@@ -170,6 +170,14 @@ fi
 puts-step "Installing dependencies using Pip ($PIP_VERSION)"
 /home/vcap/app/.heroku/python/bin/pip install --use-mirrors -r requirements.txt --exists-action=w --src=./.heroku/src | cleanup | indent
 
+# Create boot script
+cat >>$APP_DIR/boot.sh <<EOF
+echo "Launching Gunicorn"
+exec gunicorn -b 127.0.0.1:$PORT wsgi:application
+EOF
+
+chmod +x $APP_DIR/boot.sh
+
 # Django collectstatic support.
 source $BIN_DIR/steps/collectstatic
 
