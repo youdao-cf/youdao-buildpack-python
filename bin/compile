@@ -155,18 +155,10 @@ if [ "$FRESH_PYTHON" ] || [[ ! $(pip --version) == *$PIP_VERSION* ]]; then
   cd $WORKING_DIR
 
   # Delete useless files under dea_ng
-  if [ -f /home/vcap/app/dea_ng/buildpacks/vendor/php ]; then
-    rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/php
-  fi
-  if [ -f /home/vcap/app/dea_ng/buildpacks/vendor/java ]; then
-    rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/java
-  fi
-  if [ -f /home/vcap/app/dea_ng/buildpacks/vendor/nodejs ]; then
-    rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/nodejs
-  fi
-  if [ -f /home/vcap/app/dea_ng/buildpacks/vendor/ruby ]; then
-    rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/ruby
-  fi
+  rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/php
+  rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/java
+  rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/nodejs
+  rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/ruby
 fi
 
 set -e
