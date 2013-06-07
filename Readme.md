@@ -1,6 +1,17 @@
 Heroku buildpack: Python
 ========================
 
+####This build pack is forked from heroku-buildpack-python and modified for local scenario.
+
+#Modification:
+1. change download server from amazon s3 to local server
+2. add gunicorn in /vendor as python server.
+3. in bin/compile, create gunicorn config to load env["PORT"] and create boot.sh to start gunicorn server
+4. modify some directory from /app for /home/vcap/app to work links bug on CentOS around
+
+##Original Readme
+
+
 This is a [Heroku buildpack](http://devcenter.heroku.com/articles/buildpacks) for Python apps, powered by [pip](http://www.pip-installer.org/).
 
 [![Build Status](https://secure.travis-ci.org/heroku/heroku-buildpack-python.png?branch=master)](http://travis-ci.org/heroku/heroku-buildpack-python)
