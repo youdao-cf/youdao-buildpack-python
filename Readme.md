@@ -5,8 +5,8 @@ Heroku buildpack: Python
 
 #Modification:
 1. change download server from amazon s3 to local server
-2. add gunicorn as vendor
-3. add boot.sh which start gunicorn server to run python project
+2. add gunicorn in /vendor as python server.
+3. in bin/compile, create gunicorn config to load env["PORT"] and create boot.sh to start gunicorn server
 4. modify some directory from /app for /home/vcap/app to work links bug on CentOS around
 
 ##Original Readme
