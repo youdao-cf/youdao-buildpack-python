@@ -136,29 +136,24 @@ fi
 if [ "$FRESH_PYTHON" ] || [[ ! $(pip --version) == *$PIP_VERSION* ]]; then
   WORKING_DIR=$(pwd)
   # copy vendor to /home/vcap/app to make it writable
-  cp /home/vcap/dea_ng /home/vcap/app/ -R
-  chmod a+w /home/vcap/app/dea_ng/buildpacks/vendor/python -R
+  cp /home/vcap/dea_ng/buildpacks/vendor/python/vendor /home/vcap/app/pythonvendor -R
+  chmod a+w /home/vcap/app/pythonvendor -R
   # Prepare it for the real world
   puts-step "Installing Distribute ($DISTRIBUTE_VERSION)"
-  cd /home/vcap/app/dea_ng/buildpacks/vendor/python/vendor/distribute-$DISTRIBUTE_VERSION/
+  cd /home/vcap/app/pythonvendor/distribute-$DISTRIBUTE_VERSION/
   python setup.py install &> /dev/null
   cd $WORKING_DIR
 
   puts-step "Installing Pip ($PIP_VERSION)"
-  cd /home/vcap/app/dea_ng/buildpacks/vendor/python/vendor/pip-$PIP_VERSION/
+  cd /home/vcap/app/pythonvendor/pip-$PIP_VERSION/
   python setup.py install &> /dev/null
   cd $WORKING_DIR
 
   puts-step "Installing Gunicorn ($GUNICORN)"
-  cd /home/vcap/app/dea_ng/buildpacks/vendor/python/vendor/gunicorn-$GUNICORN/
+  cd /home/vcap/app/pythonvendor/gunicorn-$GUNICORN/
   python setup.py install &> /dev/null
   cd $WORKING_DIR
 
-  # Delete useless files under dea_ng
-  rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/php
-  rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/java
-  rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/nodejs
-  rm -fr /home/vcap/app/dea_ng/buildpacks/vendor/ruby
 fi
 
 set -e
